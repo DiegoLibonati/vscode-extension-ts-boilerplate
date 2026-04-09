@@ -231,7 +231,7 @@ Automatic code formatting:
 
 Pre-commit hooks that automatically:
 
-- Run ESLint on staged `.ts` and `.js` files
+- Run ESLint on staged `.ts` files
 - Format code with Prettier
 - Block commits with linting errors
 
