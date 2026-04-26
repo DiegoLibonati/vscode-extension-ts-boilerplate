@@ -2,13 +2,13 @@ import * as vscode from "vscode";
 
 const aliveCommand = (): void => {
   vscode.window.showInformationMessage(
-    "Hello world from Template VSCode Extension."
+    "Hello world from VSCode Extension Ts Boilerplate."
   );
 };
 
 export const registerAliveCommand = (): vscode.Disposable => {
   return vscode.commands.registerCommand(
-    "template-vscode-extension.alive",
+    "vscode-extension-ts-boilerplate.alive",
     aliveCommand
   );
 };

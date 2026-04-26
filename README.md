@@ -1,4 +1,4 @@
-# Template-VSCode-Extension
+# VSCode Extension Ts Boilerplate
 
 ## Educational Purpose
 
@@ -16,11 +16,27 @@ The main goal is to explore and demonstrate best practices, patterns, and techno
 6. Select one of the available configurations:
    - **Run Extension (Build once)** — builds once and launches the Extension Development Host
    - **Run Extension (Watch mode)** — rebuilds on every file save, ideal for active development
-7. In the **Extension Development Host** window, open the Command Palette (`Ctrl+Shift+P`) and run `Template-VSCode-Extension: Alive`
+7. In the **Extension Development Host** window, open the Command Palette (`Ctrl+Shift+P`) and run `VSCode Extension Ts Boilerplate: Alive`
 
 ## Description
 
-Personal template for creating VSCode Extensions.
+**VSCode Extension Ts Boilerplate** is a TypeScript-based template for building VS Code extensions with a fully configured development environment and a clean layered architecture ready to extend.
+
+- **What it is:** A production-ready boilerplate for building VS Code extensions with TypeScript — giving you a clean, pre-configured foundation so you can focus on writing your extension's actual logic from day one.
+
+- **The problem it solves:** Every new VS Code extension requires the same repetitive setup: wiring up esbuild, configuring TypeScript with strict mode, mocking the `vscode` API for tests, setting up ESLint + Prettier + pre-commit hooks, and deciding how to organize commands, helpers, and types. This template makes all of those decisions once so you never have to again.
+
+- **What it includes:**
+  - **esbuild bundler** (`scripts/build.ts`) with path alias support (`@/` → `src/`, `@__tests__/` → `__tests__/`) and a problem-matcher plugin for VS Code's watch task integration
+  - **Four TypeScript configs** scoped by concern: `src/`, `__tests__/`, `scripts/`, and a shared `tsconfig.base.json` with strict mode fully enabled (`exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, etc.)
+  - **Jest + ts-jest** with a complete `vscode` API mock (`__tests__/__mocks__/vscode.mock.ts`) and `ExtensionContext` mock — unit tests run without a VS Code instance; 70% coverage threshold enforced
+  - **ESLint** (flat config) with `typescript-eslint` strict rules: explicit return types, no `any`, consistent type imports, no unused variables
+  - **Prettier** integrated with ESLint via `eslint-plugin-prettier` to avoid conflicts
+  - **Husky + lint-staged** pre-commit hook that runs ESLint fix + Prettier on every staged `.ts` file, blocking commits with errors
+  - **Layered architecture** already in place: `src/commands/` (VS Code API layer), `src/helpers/` (pure logic, zero vscode dependency), `src/constants/` + `src/types/` (shared values and contracts)
+  - **`.vscode/` workspace config**: two launch configurations (build-once and watch-mode), recommended extensions, and build tasks wired to the debug runner
+
+- **How to use it:** Clone the repo, update the extension `name`, `displayName`, `publisher`, and command IDs in `package.json`, rename or delete the example `aliveCommand.ts`, and start adding your own `register*Command()` functions in `src/commands/` — the architecture and tooling are already wired up.
 
 ## Technologies Used
 
@@ -75,7 +91,7 @@ No production dependencies - Pure Vanilla TypeScript
 
 ## Portfolio Link
 
-[`https://www.diegolibonati.com.ar/#/project/Template-VSCode-Extension`](https://www.diegolibonati.com.ar/#/project/Template-VSCode-Extension)
+[`https://www.diegolibonati.com.ar/#/project/vscode-extension-ts-boilerplate`](https://www.diegolibonati.com.ar/#/project/vscode-extension-ts-boilerplate)
 
 ## Testing
 
@@ -91,7 +107,7 @@ npm run test:coverage
 ## Project Structure
 
 ```
-Template-VSCode-Extension/
+vscode-extension-ts-boilerplate/
 ├── __tests__/                      # Test suite
 │   ├── __mocks__/                  # Shared mock data and module mocks
 │   │   ├── extensionContext.mock.ts # Mock for vscode.ExtensionContext
@@ -178,7 +194,7 @@ const aliveCommand = (): void => {
 
 export const registerAliveCommand = (): vscode.Disposable => {
   return vscode.commands.registerCommand(
-    "template-vscode-extension.alive",
+    "vscode-extension-ts-boilerplate.alive",
     aliveCommand
   );
 };

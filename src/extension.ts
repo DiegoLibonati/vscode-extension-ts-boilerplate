@@ -4,7 +4,7 @@ import { registerAliveCommand } from "@/commands/aliveCommand";
 
 export function activate(context: vscode.ExtensionContext): void {
   console.log(
-    "Congratulations, your 'Template VSCode Extension' extension is now active."
+    "Congratulations, your 'VSCode Extension Ts Boilerplate' extension is now active."
   );
 
   context.subscriptions.push(registerAliveCommand());
