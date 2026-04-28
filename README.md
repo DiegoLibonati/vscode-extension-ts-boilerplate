@@ -55,7 +55,7 @@ No production dependencies - Pure Vanilla TypeScript
 ```
 "@eslint/js": "^9.0.0"
 "@types/jest": "^29.5.14"
-"@types/node": "20.x"
+"@types/node": "^22.0.0"
 "@types/vscode": "^1.99.0"
 "esbuild": "^0.25.10"
 "eslint": "^9.23.0"
