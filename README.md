@@ -53,6 +53,7 @@ No production dependencies - Pure Vanilla TypeScript
 ### DevDependencies
 
 ```
+"@vscode/vsce": "^3.0.0"
 "@eslint/js": "^9.0.0"
 "@types/jest": "^29.5.14"
 "@types/node": "^22.0.0"
@@ -88,6 +89,8 @@ No production dependencies - Pure Vanilla TypeScript
 | `npm run format:check`  | Check code formatting              |
 | `npm run format:all`    | Format with Prettier (src + tests) |
 | `npm run check-types`   | Type-check all tsconfigs           |
+| `npm run ext:package`   | Package extension into a `.vsix`   |
+| `npm run ext:publish`   | Publish extension to the Marketplace |
 
 ## Portfolio Link
 
@@ -102,6 +105,49 @@ For coverage report:
 
 ```bash
 npm run test:coverage
+```
+
+## Production
+
+Unlike web apps, VS Code extensions don't use Docker or a server. "Production" means packaging the extension into a `.vsix` file and optionally publishing it to the [VS Code Marketplace](https://marketplace.visualstudio.com/).
+
+### How it works
+
+The build pipeline hooks into VS Code's publish lifecycle automatically:
+
+- **`vscode:prepublish`** — runs `npm run build` before every `vsce package` or `vsce publish` call, ensuring the bundle in `dist/` is always up to date
+- **`.vscodeignore`** — controls which files are excluded from the package (like `.dockerignore`); source files, tests, and config files are excluded, only `dist/` and `public/` ship
+
+### Flow
+
+```
+npm run build  →  dist/extension.js  →  npm run ext:package  →  .vsix
+                                                                   ↓
+                                              install locally  or  npm run ext:publish  →  Marketplace
+```
+
+### Package locally
+
+Creates a `.vsix` file you can install manually or distribute:
+
+```bash
+npm run ext:package
+# installs it in VS Code:
+code --install-extension your-extension-1.0.0.vsix
+```
+
+### Publish to the Marketplace
+
+Requires a **Personal Access Token (PAT)** from [Azure DevOps](https://dev.azure.com) with Marketplace publish permissions, and that the `publisher` field in `package.json` matches your publisher account.
+
+```bash
+npm run ext:publish
+```
+
+On first run, `vsce` will prompt for the PAT and cache it. To set it explicitly:
+
+```bash
+npx vsce publish --pat <YOUR_PAT>
 ```
 
 ## Project Structure
