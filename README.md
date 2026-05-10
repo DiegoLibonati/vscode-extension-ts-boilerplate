@@ -75,28 +75,13 @@ Now that you know what the boilerplate provides, here's how to spin it up locall
    - **Run Extension (Watch mode)** — rebuilds on every file save, ideal for active development
 7. In the **Extension Development Host** window, open the Command Palette (`Ctrl+Shift+P`) and run `VSCode Extension Ts Boilerplate: Alive`
 
-> No `.env` file is required — this extension does not consume runtime environment variables. Marketplace publishing uses a `vsce` Personal Access Token, which is covered in [Production](#production).
+For active development outside the debug runner, you can run the bundler directly in watch mode:
 
-### Available Scripts
+```bash
+npm run dev
+```
 
-These are the npm scripts you'll use day-to-day. Specific scripts are referenced again in [Testing](#testing), [Security Audit](#security-audit), [Build](#build), and [Production](#production).
-
-| Command                 | Description                          |
-| ----------------------- | ------------------------------------ |
-| `npm run dev`           | Start watch mode build               |
-| `npm run build`         | Build for production                 |
-| `npm run test`          | Run tests                            |
-| `npm run test:watch`    | Run tests in watch mode              |
-| `npm run test:coverage` | Run tests with coverage              |
-| `npm run lint`          | Check for linting errors             |
-| `npm run lint:fix`      | Fix linting errors                   |
-| `npm run lint:all`      | Fix linting errors (src + tests)     |
-| `npm run format`        | Format code with Prettier            |
-| `npm run format:check`  | Check code formatting                |
-| `npm run format:all`    | Format with Prettier (src + tests)   |
-| `npm run check-types`   | Type-check all tsconfigs             |
-| `npm run ext:package`   | Package extension into a `.vsix`     |
-| `npm run ext:publish`   | Publish extension to the Marketplace |
+No `.env` file is required to run the extension — see [Env Keys](#env-keys) for the variables consumed by the publish pipeline.
 
 ### Pre-Commit for Development
 
@@ -107,12 +92,27 @@ The hook runs:
 - **ESLint** with TypeScript strict rules (explicit return types, no `any`, consistent type imports, no unused variables) — auto-fixes what it can.
 - **Prettier** with the project conventions (2 spaces, semicolons, double quotes, ES5 trailing commas).
 
-To trigger the same pipeline manually across the whole codebase:
+To trigger the same checks manually:
 
 ```bash
-npm run lint:all
-npm run format:all
+npm run lint           # Check linting errors in src/
+npm run lint:fix       # Auto-fix linting errors in src/
+npm run lint:all       # Auto-fix linting errors in src/ + __tests__/
+npm run format         # Format src/ with Prettier
+npm run format:check   # Check formatting without writing
+npm run format:all     # Format src/ + __tests__/ with Prettier
+npm run check-types    # Type-check all tsconfigs (src, tests, scripts)
 ```
+
+## Env Keys
+
+This extension does not consume any runtime environment variables — installed users do not need to configure anything, and contributors do not need a `.env` to run it locally.
+
+The only secret in the toolchain belongs to the **publish pipeline**: an Azure DevOps Personal Access Token (PAT) used by `vsce` to push the extension to the Marketplace. It is not loaded from a `.env` file; `vsce` prompts for it on first publish and caches it locally, or you can pass it explicitly. See [Production → Publish to the Marketplace](#publish-to-the-marketplace) for the full flow.
+
+| Variable   | Scope            | Required | Description                                                                                                                |
+| ---------- | ---------------- | -------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `VSCE_PAT` | Publishing only  | Optional | Azure DevOps PAT with Marketplace publish permissions. Can be exported as an env var or passed via `npx vsce publish --pat <token>` to skip the interactive prompt. |
 
 ## Project Structure
 
@@ -243,6 +243,12 @@ Tests live in `__tests__/` and run on **Jest + ts-jest**. The `vscode` module is
 
 1. Navigate to the project folder
 2. Execute: `npm test`
+
+For watch mode (re-runs on file changes, ideal during development):
+
+```bash
+npm run test:watch
+```
 
 For the coverage report:
 
