@@ -6,18 +6,6 @@ This project was created primarily for **educational and learning purposes**.
 While it is well-structured and could technically be used in production, it is **not intended for commercialization**.  
 The main goal is to explore and demonstrate best practices, patterns, and technologies in software development.
 
-## Getting Started
-
-1. Clone the repository
-2. Navigate to the project folder
-3. Execute: `npm install`
-4. Open the project in VS Code
-5. Press `F5` or go to `Run > Start Debugging`
-6. Select one of the available configurations:
-   - **Run Extension (Build once)** — builds once and launches the Extension Development Host
-   - **Run Extension (Watch mode)** — rebuilds on every file save, ideal for active development
-7. In the **Extension Development Host** window, open the Command Palette (`Ctrl+Shift+P`) and run `VSCode Extension Ts Boilerplate: Alive`
-
 ## Description
 
 **VSCode Extension Ts Boilerplate** is a TypeScript-based template for building VS Code extensions with a fully configured development environment and a clean layered architecture ready to extend.
@@ -73,84 +61,62 @@ No production dependencies - Pure Vanilla TypeScript
 "typescript-eslint": "^8.0.0"
 ```
 
-## Available Scripts
+## Getting Started
 
-| Command                 | Description                        |
-| ----------------------- | ---------------------------------- |
-| `npm run dev`           | Start watch mode build             |
-| `npm run build`         | Build for production               |
-| `npm run test`          | Run tests                          |
-| `npm run test:watch`    | Run tests in watch mode            |
-| `npm run test:coverage` | Run tests with coverage            |
-| `npm run lint`          | Check for linting errors           |
-| `npm run lint:fix`      | Fix linting errors                 |
-| `npm run lint:all`      | Fix linting errors (src + tests)   |
-| `npm run format`        | Format code with Prettier          |
-| `npm run format:check`  | Check code formatting              |
-| `npm run format:all`    | Format with Prettier (src + tests) |
-| `npm run check-types`   | Type-check all tsconfigs           |
-| `npm run ext:package`   | Package extension into a `.vsix`   |
+Now that you know what the boilerplate provides, here's how to spin it up locally:
+
+1. Clone the repository
+2. Navigate to the project folder
+3. Execute: `npm install`
+4. Open the project in VS Code
+5. Press `F5` or go to `Run > Start Debugging`
+6. Select one of the available configurations:
+   - **Run Extension (Build once)** — builds once and launches the Extension Development Host
+   - **Run Extension (Watch mode)** — rebuilds on every file save, ideal for active development
+7. In the **Extension Development Host** window, open the Command Palette (`Ctrl+Shift+P`) and run `VSCode Extension Ts Boilerplate: Alive`
+
+> No `.env` file is required — this extension does not consume runtime environment variables. Marketplace publishing uses a `vsce` Personal Access Token, which is covered in [Production](#production).
+
+### Available Scripts
+
+These are the npm scripts you'll use day-to-day. Specific scripts are referenced again in [Testing](#testing), [Security Audit](#security-audit), [Build](#build), and [Production](#production).
+
+| Command                 | Description                          |
+| ----------------------- | ------------------------------------ |
+| `npm run dev`           | Start watch mode build               |
+| `npm run build`         | Build for production                 |
+| `npm run test`          | Run tests                            |
+| `npm run test:watch`    | Run tests in watch mode              |
+| `npm run test:coverage` | Run tests with coverage              |
+| `npm run lint`          | Check for linting errors             |
+| `npm run lint:fix`      | Fix linting errors                   |
+| `npm run lint:all`      | Fix linting errors (src + tests)     |
+| `npm run format`        | Format code with Prettier            |
+| `npm run format:check`  | Check code formatting                |
+| `npm run format:all`    | Format with Prettier (src + tests)   |
+| `npm run check-types`   | Type-check all tsconfigs             |
+| `npm run ext:package`   | Package extension into a `.vsix`     |
 | `npm run ext:publish`   | Publish extension to the Marketplace |
 
-## Portfolio Link
+### Pre-Commit for Development
 
-[`https://www.diegolibonati.com.ar/#/project/vscode-extension-ts-boilerplate`](https://www.diegolibonati.com.ar/#/project/vscode-extension-ts-boilerplate)
+The pre-commit pipeline is already wired up via **Husky + lint-staged**. On every commit, staged `.ts` files are automatically linted and formatted, and the commit is blocked if there are unfixable errors.
 
-## Testing
+The hook runs:
 
-1. Navigate to the project folder
-2. Execute: `npm test`
+- **ESLint** with TypeScript strict rules (explicit return types, no `any`, consistent type imports, no unused variables) — auto-fixes what it can.
+- **Prettier** with the project conventions (2 spaces, semicolons, double quotes, ES5 trailing commas).
 
-For coverage report:
-
-```bash
-npm run test:coverage
-```
-
-## Production
-
-Unlike web apps, VS Code extensions don't use Docker or a server. "Production" means packaging the extension into a `.vsix` file and optionally publishing it to the [VS Code Marketplace](https://marketplace.visualstudio.com/).
-
-### How it works
-
-The build pipeline hooks into VS Code's publish lifecycle automatically:
-
-- **`vscode:prepublish`** — runs `npm run build` before every `vsce package` or `vsce publish` call, ensuring the bundle in `dist/` is always up to date
-- **`.vscodeignore`** — controls which files are excluded from the package (like `.dockerignore`); source files, tests, and config files are excluded, only `dist/` and `public/` ship
-
-### Flow
-
-```
-npm run build  →  dist/extension.js  →  npm run ext:package  →  .vsix
-                                                                   ↓
-                                              install locally  or  npm run ext:publish  →  Marketplace
-```
-
-### Package locally
-
-Creates a `.vsix` file you can install manually or distribute:
+To trigger the same pipeline manually across the whole codebase:
 
 ```bash
-npm run ext:package
-# installs it in VS Code:
-code --install-extension your-extension-1.0.0.vsix
-```
-
-### Publish to the Marketplace
-
-Requires a **Personal Access Token (PAT)** from [Azure DevOps](https://dev.azure.com) with Marketplace publish permissions, and that the `publisher` field in `package.json` matches your publisher account.
-
-```bash
-npm run ext:publish
-```
-
-On first run, `vsce` will prompt for the PAT and cache it. To set it explicitly:
-
-```bash
-npx vsce publish --pat <YOUR_PAT>
+npm run lint:all
+npm run format:all
 ```
 
 ## Project Structure
+
+With the project running, here's how the codebase is organized:
 
 ```
 vscode-extension-ts-boilerplate/
@@ -269,44 +235,105 @@ export const getFullPathFile = (
 };
 ```
 
-## Code Quality Tools
+## Testing
 
-### ESLint
+With the architecture clear, the next step before shipping is verifying everything works.
 
-Configured with TypeScript strict rules:
+Tests live in `__tests__/` and run on **Jest + ts-jest**. The `vscode` module is fully mocked via `__tests__/__mocks__/vscode.mock.ts`, so the suite runs without spawning a VS Code instance. Coverage is collected from `src/**/*.ts` and a **70% threshold is enforced**.
 
-- Explicit return types required
-- No `any` type allowed
-- Consistent type imports
-- No unused variables
+1. Navigate to the project folder
+2. Execute: `npm test`
 
-### Prettier
+For the coverage report:
 
-Automatic code formatting:
+```bash
+npm run test:coverage
+```
 
-- 2 spaces indentation
-- Semicolons required
-- Double quotes
-- Trailing commas (ES5)
+To run a single test file:
 
-### Husky + lint-staged
+```bash
+npx jest __tests__/path/to/file.test.ts --verbose
+```
 
-Pre-commit hooks that automatically:
+## Security Audit
 
-- Run ESLint on staged `.ts` files
-- Format code with Prettier
-- Block commits with linting errors
-
-## Security
-
-### npm audit
-
-Check for vulnerabilities in dependencies:
+Once tests pass, audit the dependency tree before packaging.
 
 ```bash
 npm audit
 ```
 
+Resolve any high/critical advisories before moving on to [Build](#build). Since this template ships with **zero production dependencies**, audit findings will only ever come from `devDependencies` and won't be bundled into the published `.vsix`.
+
+## Build
+
+With tests green and the dependency tree clean, build the production bundle.
+
+```bash
+npm run build
+```
+
+This runs `scripts/build.ts`, which uses **esbuild** to bundle `src/extension.ts` → `dist/extension.js` (CJS, Node 20, `vscode` marked external). Two esbuild plugins are wired in:
+
+- `aliasPlugin` — resolves `@/` and `@__tests__/` path aliases
+- `problemMatcherPlugin` — emits `[watch] build started/finished` markers consumed by `.vscode/tasks.json`
+
+For active development, use `npm run dev` instead — it runs the same bundler in watch mode with source maps enabled.
+
+## Production
+
+Unlike web apps, VS Code extensions don't use Docker or a server. **"Production" means packaging the extension into a `.vsix` file and optionally publishing it to the [VS Code Marketplace](https://marketplace.visualstudio.com/).**
+
+Before publishing, make sure you've completed the release pipeline:
+
+1. [Testing](#testing) — `npm run test:coverage` passes the 70% threshold
+2. [Security Audit](#security-audit) — `npm audit` is clean
+3. [Build](#build) — `npm run build` produces `dist/extension.js`
+
+### How it works
+
+The build pipeline hooks into VS Code's publish lifecycle automatically:
+
+- **`vscode:prepublish`** — runs `npm run build` before every `vsce package` or `vsce publish` call, ensuring the bundle in `dist/` is always up to date
+- **`.vscodeignore`** — controls which files are excluded from the package (like `.dockerignore`); source files, tests, and config files are excluded, only `dist/` and `public/` ship
+
+### Flow
+
+```
+npm run build  →  dist/extension.js  →  npm run ext:package  →  .vsix
+                                                                   ↓
+                                              install locally  or  npm run ext:publish  →  Marketplace
+```
+
+### Package locally
+
+Creates a `.vsix` file you can install manually or distribute:
+
+```bash
+npm run ext:package
+# install it in VS Code:
+code --install-extension your-extension-1.0.0.vsix
+```
+
+### Publish to the Marketplace
+
+Requires a **Personal Access Token (PAT)** from [Azure DevOps](https://dev.azure.com) with Marketplace publish permissions, and that the `publisher` field in `package.json` matches your publisher account.
+
+```bash
+npm run ext:publish
+```
+
+On first run, `vsce` will prompt for the PAT and cache it. To set it explicitly:
+
+```bash
+npx vsce publish --pat <YOUR_PAT>
+```
+
 ## Known Issues
 
 None at the moment.
+
+## Portfolio Link
+
+[`https://www.diegolibonati.com.ar/#/project/vscode-extension-ts-boilerplate`](https://www.diegolibonati.com.ar/#/project/vscode-extension-ts-boilerplate)
