@@ -21,7 +21,7 @@ The main goal is to explore and demonstrate best practices, patterns, and techno
   - **ESLint** (flat config) with `typescript-eslint` strict rules: explicit return types, no `any`, consistent type imports, no unused variables
   - **Prettier** integrated with ESLint via `eslint-plugin-prettier` to avoid conflicts
   - **Husky + lint-staged** pre-commit hook that runs ESLint fix + Prettier on every staged `.ts` file, blocking commits with errors
-  - **Layered architecture** already in place: `src/commands/` (VS Code API layer), `src/helpers/` (pure logic, zero vscode dependency), `src/constants/` + `src/types/` (shared values and contracts)
+  - **Layered architecture** already in place: `src/commands/` (VS Code API layer), `src/helpers/` (utility functions — pure logic by default, free to import `vscode` when needed), `src/constants/` + `src/types/` (shared values and contracts)
   - **`.vscode/` workspace config**: two launch configurations (build-once and watch-mode), recommended extensions, and build tasks wired to the debug runner
 
 - **How to use it:** Clone the repo, update the extension `name`, `displayName`, `publisher`, and command IDs in `package.json`, rename or delete the example `aliveCommand.ts`, and start adding your own `register*Command()` functions in `src/commands/` — the architecture and tooling are already wired up.
@@ -126,8 +126,10 @@ vscode-extension-ts-boilerplate/
 │   │   └── vscode.mock.ts          # Mock for the vscode API
 │   ├── commands/                   # Tests for command modules
 │   ├── helpers/                    # Tests for helper functions
-│   ├── extension.test.ts           # Tests for the extension entry point
 │   └── jest.setup.ts               # Jest global setup
+├── .github/
+│   └── workflows/
+│       └── ci.yml                  # GitHub Actions CI/CD pipeline
 ├── public/                         # Static assets
 │   └── icon.png                    # Extension icon
 ├── scripts/
@@ -137,7 +139,7 @@ vscode-extension-ts-boilerplate/
 │   │   └── aliveCommand.ts         # Example command
 │   ├── constants/                  # App-wide constant values
 │   │   └── vars.ts                 # General constants
-│   ├── helpers/                    # Pure utility functions (no vscode dependencies)
+│   ├── helpers/                    # Utility functions (may import vscode when needed)
 │   │   └── getFullPathFile.ts      # Path joining helper
 │   ├── types/                      # TypeScript type definitions
 │   │   └── app.ts                  # Domain model types
@@ -147,6 +149,10 @@ vscode-extension-ts-boilerplate/
 │   ├── launch.json                 # Debug / run configurations
 │   ├── settings.json               # Workspace settings
 │   └── tasks.json                  # Build tasks used by launch.json
+├── .editorconfig                   # Editor-agnostic formatting rules
+├── .npmrc                          # npm settings (engine-strict)
+├── .nvmrc                          # Pinned Node version (used by CI)
+├── CHANGELOG.md                    # Release notes (Keep a Changelog)
 ├── eslint.config.mjs               # ESLint flat config
 ├── jest.config.mjs                 # Jest configuration
 ├── tsconfig.app.json               # TypeScript config for src/
@@ -162,7 +168,7 @@ vscode-extension-ts-boilerplate/
 | `__tests__/__mocks__/` | Reusable mocks — vscode API and ExtensionContext                  |
 | `src/commands/`        | One file per VS Code command; each exports a `register*` function |
 | `src/constants/`       | Centralized constants with typed values from `src/types/`         |
-| `src/helpers/`         | Stateless utility functions with no vscode API dependencies       |
+| `src/helpers/`         | Utility functions; may import `vscode` when wrapping the API      |
 | `src/types/`           | TypeScript interfaces and types, split by concern                 |
 | `src/extension.ts`     | Entry point — registers all commands via `context.subscriptions`  |
 | `scripts/build.ts`     | esbuild bundler with path alias and problem matcher plugins       |
@@ -179,7 +185,7 @@ extension.ts  (entry point)
      │
      ├── commands/   (VS Code API layer — registers commands, handles Disposables)
      │
-     ├── helpers/    (pure logic layer — no vscode dependency)
+     ├── helpers/    (utility layer — pure logic preferred, vscode allowed when needed)
      │
      ├── constants/  (shared values — typed via types/)
      │
@@ -188,7 +194,7 @@ extension.ts  (entry point)
 
 `extension.ts` acts as the composition root: it imports every `register*Command()` function and pushes the returned `Disposable` into `context.subscriptions`, delegating lifecycle management entirely to VS Code.
 
-`helpers/` is intentionally kept free of any `vscode` import. This makes utility functions trivially testable with plain Jest — no mocking required.
+`helpers/` favors pure functions so they can be tested with plain Jest — no mocking required. When a helper genuinely needs the VS Code API (e.g. a thin wrapper around `vscode.window.showQuickPick`), importing `vscode` is allowed; the global `vscode` mock in `__tests__/__mocks__/` covers those cases at test time.
 
 ---
 
@@ -223,7 +229,7 @@ context.subscriptions.push(registerAliveCommand());
 
 **Pure Functions**
 
-Helpers in `src/helpers/` are stateless pure functions: same input always produces the same output, with no side effects. This keeps them framework-agnostic and directly unit-testable.
+Helpers in `src/helpers/` are preferably stateless pure functions: same input always produces the same output, with no side effects. This keeps them framework-agnostic and directly unit-testable. Helpers that wrap the VS Code API are also allowed when useful — they remain testable via the global `vscode` mock.
 
 ```ts
 // src/helpers/getFullPathFile.ts
@@ -280,12 +286,124 @@ With tests green and the dependency tree clean, build the production bundle.
 npm run build
 ```
 
-This runs `scripts/build.ts`, which uses **esbuild** to bundle `src/extension.ts` → `dist/extension.js` (CJS, Node 20, `vscode` marked external). Two esbuild plugins are wired in:
+This runs `scripts/build.ts`, which uses **esbuild** to bundle `src/extension.ts` → `dist/extension.js` (CJS, Node 22, `vscode` marked external). Two esbuild plugins are wired in:
 
 - `aliasPlugin` — resolves `@/` and `@__tests__/` path aliases
 - `problemMatcherPlugin` — emits `[watch] build started/finished` markers consumed by `.vscode/tasks.json`
 
 For active development, use `npm run dev` instead — it runs the same bundler in watch mode with source maps enabled.
+
+To inspect the bundle composition (per-module size breakdown plus a `dist/metafile.json` for tools like [esbuild's bundle analyzer](https://esbuild.github.io/analyze/)):
+
+```bash
+npm run build -- --analyze
+```
+
+## Continuous Integration
+
+The repository ships with a **GitHub Actions** pipeline defined in [`.github/workflows/ci.yml`](.github/workflows/ci.yml). It runs automatically on every `push` and `pull_request` targeting the `main` branch. On `push` to `main`, the same workflow continues with two additional jobs that produce an automated release to the VS Code Marketplace.
+
+### Pipeline overview
+
+```
+                      ┌─── PR or push to main ───┐
+                      ▼                          ▼
+┌──────────────────────┐  ┌──────────────────┐  ┌──────────────────┐
+│   lint-and-audit     │─▶│     testing      │─▶│      build       │
+│ eslint · tsc · prettier │  jest --verbose  │  │ esbuild → dist/  │
+│      npm audit       │  │                  │  │                  │
+└──────────────────────┘  └──────────────────┘  └──────────────────┘
+                                                          │
+                                       (only on push to main, sequentially)
+                                                          ▼
+                                                ┌──────────────────────┐
+                                                │ check-publish-config │
+                                                │  verifies VSCE_PAT   │
+                                                └──────────────────────┘
+                                                          │
+                                                          ▼
+                                                ┌──────────────────────────┐
+                                                │   publish-marketplace    │
+                                                │ bump · changelog · tag · │
+                                                │      vsce publish        │
+                                                └──────────────────────────┘
+```
+
+### Validation jobs (run on every PR and push)
+
+1. **`lint-and-audit`** — `npm run lint`, `npm run check-types`, `npm run format:check`, `npm audit --audit-level=high`.
+2. **`testing`** — `npm test` (Jest + ts-jest with the global `vscode` mock).
+3. **`build`** — runs `npm run build` to confirm `scripts/build.ts` produces a clean `dist/extension.js` bundle.
+
+### Release jobs (only on push to `main`)
+
+4. **`check-publish-config`** — reads the `VSCE_PAT` secret through an env var (the only way to test a secret's presence in Actions) and exposes an `enabled` output. If `VSCE_PAT` is missing, the next job is reported as **Skipped** so downstream consumers of this boilerplate can adopt the CI without ever touching the workflow file.
+5. **`publish-marketplace`** — inspects the commits since the latest tag, decides the next SemVer version using [Conventional Commits](#conventional-commits-required-for-releases), regenerates the matching section of `CHANGELOG.md` ([Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format), bumps `package.json` + `package-lock.json` via `npm version`, then commits, tags and pushes back to `main` as `github-actions[bot]`. Finally it runs `npx vsce publish`, which re-runs the `vscode:prepublish` script (`npm run build`) and uploads the `.vsix` to the Marketplace. The release commit subject is `chore(release): vX.Y.Z [skip release]` so the follow-up push does not re-trigger the publish job.
+
+### Conventional Commits (required for releases)
+
+Commits merged into `main` must follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) so the pipeline can compute the next version and group the changelog entries.
+
+| Commit prefix | Version bump | Example |
+|---|---|---|
+| `feat:` / `feat(scope):` | **MINOR** | `feat(commands): add open settings command` |
+| `fix:` / `fix(scope):` | **PATCH** | `fix: avoid crash when workspace is empty` |
+| `perf:`, `refactor:`, `docs:`, `build:`, `ci:`, `chore:`, `style:`, `test:` | **PATCH** | `refactor: extract path helper` |
+| `feat!:` / `fix!:` or `BREAKING CHANGE:` in the body | **MAJOR** | `feat!: rename activation command` |
+
+When a push contains multiple commits, the highest applicable bump wins (a single `feat:` among many `fix:` triggers a MINOR bump). If you squash-merge PRs, configure the repo to use the PR title as the squash commit message and write the **PR title** following the convention.
+
+The changelog generator groups entries as:
+
+- `feat:` → **### Added**
+- `fix:` → **### Fixed**
+- `refactor:`, `perf:`, `chore:`, `docs:`, `style:`, `build:`, `ci:`, `revert:` → **### Changed**
+
+### Skipping a release
+
+If you need to push a change to `main` without producing a release (e.g. tweaking job names in the workflow, fixing a typo in the README), append `[skip release]` to the commit message. The validation jobs (lint, test, build) still run; only `check-publish-config` and `publish-marketplace` are skipped.
+
+```bash
+git commit -m "ci: rename build job for clarity [skip release]"
+```
+
+To skip **everything** including validation, use GitHub's standard `[skip ci]` marker instead.
+
+### Where the build outputs live
+
+| Output | Location |
+|---|---|
+| Validation logs (lint, tests) | **Actions** tab on GitHub |
+| Local build artifact (`dist/extension.js`) | Ephemeral, inside the runner |
+| Published `.vsix` per version | [VS Code Marketplace](https://marketplace.visualstudio.com/) under the extension's `publisher` |
+| Version history & notes | [`CHANGELOG.md`](CHANGELOG.md) + git tags (`vX.Y.Z`) |
+
+> **Note:** GitHub's **Packages** section is for package registries (npm, PyPI, Docker, etc.) and does not host VS Code extensions. The `.vsix` is hosted by the Marketplace; the git tag is the canonical reference for each release.
+
+### Repository setup required for releases
+
+For the release jobs to push tags + commits back to `main` and publish to the Marketplace, the repository needs:
+
+1. **Settings → Secrets and variables → Actions**: add `VSCE_PAT`, an [Azure DevOps Personal Access Token](https://code.visualstudio.com/api/working-with-extensions/publishing-extension#get-a-personal-access-token) with `Marketplace > Manage` scope. Without this secret the publish job is auto-skipped.
+2. **Settings → Actions → General → Workflow permissions**: set to *Read and write permissions* (the workflow already declares `permissions: contents: write` at the job level, but the repo toggle must allow it).
+3. **Branch protection on `main`**: if enabled, allow `github-actions[bot]` to bypass the PR requirement, or disable the protection for the bot. Otherwise `publish-marketplace` will fail when pushing the version bump.
+4. **`publisher` in `package.json`** must match the publisher tied to the `VSCE_PAT` token, otherwise `vsce publish` fails with `403 Forbidden`.
+
+### Running the same checks locally
+
+```bash
+# lint-and-audit
+npm run lint
+npm run check-types
+npm run format:check
+npm audit --audit-level=high
+
+# testing
+npm test
+
+# build
+npm run build
+```
 
 ## Production
 
