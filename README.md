@@ -41,11 +41,14 @@ No production dependencies - Pure Vanilla TypeScript
 ### DevDependencies
 
 ```
-"@vscode/vsce": "^3.0.0"
 "@eslint/js": "^9.0.0"
+"@semantic-release/changelog": "^6.0.3"
+"@semantic-release/exec": "^7.1.0"
+"@semantic-release/git": "^10.0.1"
 "@types/jest": "^29.5.14"
 "@types/node": "^22.0.0"
 "@types/vscode": "^1.99.0"
+"@vscode/vsce": "^3.0.0"
 "esbuild": "^0.25.10"
 "eslint": "^9.23.0"
 "eslint-config-prettier": "^9.0.0"
@@ -55,6 +58,7 @@ No production dependencies - Pure Vanilla TypeScript
 "jest": "^29.7.0"
 "lint-staged": "^15.0.0"
 "prettier": "^3.0.0"
+"semantic-release": "^25.0.3"
 "ts-jest": "^29.3.2"
 "tsx": "^4.19.3"
 "typescript": "^5.6.3"
@@ -324,8 +328,9 @@ The repository ships with a **GitHub Actions** pipeline defined in [`.github/wor
                                                           ▼
                                                 ┌──────────────────────────┐
                                                 │   publish-marketplace    │
-                                                │ bump · changelog · tag · │
-                                                │      vsce publish        │
+                                                │     semantic-release     │
+                                                │   (bump · changelog ·    │
+                                                │  tag · vsce · GH release)│
                                                 └──────────────────────────┘
 ```
 
@@ -338,7 +343,7 @@ The repository ships with a **GitHub Actions** pipeline defined in [`.github/wor
 ### Release jobs (only on push to `main`)
 
 4. **`check-publish-config`** — reads the `VSCE_PAT` secret through an env var (the only way to test a secret's presence in Actions) and exposes an `enabled` output. If `VSCE_PAT` is missing, the next job is reported as **Skipped** so downstream consumers of this boilerplate can adopt the CI without ever touching the workflow file.
-5. **`publish-marketplace`** — inspects the commits since the latest tag, decides the next SemVer version using [Conventional Commits](#conventional-commits-required-for-releases), regenerates the matching section of `CHANGELOG.md` ([Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format), bumps `package.json` + `package-lock.json` via `npm version`, then commits, tags and pushes back to `main` as `github-actions[bot]`. Finally it runs `npx vsce publish`, which re-runs the `vscode:prepublish` script (`npm run build`) and uploads the `.vsix` to the Marketplace. The release commit subject is `chore(release): vX.Y.Z [skip release]` so the follow-up push does not re-trigger the publish job.
+5. **`publish-marketplace`** — runs [`semantic-release`](https://semantic-release.gitbook.io/) with the plugin pipeline defined in [`.releaserc.json`](.releaserc.json). It inspects the commits since the latest tag, decides the next SemVer version using [Conventional Commits](#conventional-commits-required-for-releases), prepends the new entry to `CHANGELOG.md`, bumps `package.json` + `package-lock.json` (without publishing to npm), publishes the extension via `npx vsce publish --no-git-tag-version` (which re-runs `vscode:prepublish` → `npm run build` and uploads the `.vsix` to the Marketplace), commits, tags and pushes back to `main` as `github-actions[bot]`, and finally creates the matching GitHub Release with the generated notes. The release commit subject is `chore(release): vX.Y.Z [skip ci]` so the follow-up push does not re-trigger CI.
 
 ### Conventional Commits (required for releases)
 
@@ -385,7 +390,7 @@ To skip **everything** including validation, use GitHub's standard `[skip ci]` m
 For the release jobs to push tags + commits back to `main` and publish to the Marketplace, the repository needs:
 
 1. **Settings → Secrets and variables → Actions**: add `VSCE_PAT`, an [Azure DevOps Personal Access Token](https://code.visualstudio.com/api/working-with-extensions/publishing-extension#get-a-personal-access-token) with `Marketplace > Manage` scope. Without this secret the publish job is auto-skipped.
-2. **Settings → Actions → General → Workflow permissions**: set to *Read and write permissions* (the workflow already declares `permissions: contents: write` at the job level, but the repo toggle must allow it).
+2. **Settings → Actions → General → Workflow permissions**: set to *Read and write permissions* (the workflow already declares `permissions: contents: write`, `issues: write`, `pull-requests: write` at the job level so `semantic-release` can create releases and comment on related issues/PRs, but the repo toggle must allow it).
 3. **Branch protection on `main`**: if enabled, allow `github-actions[bot]` to bypass the PR requirement, or disable the protection for the bot. Otherwise `publish-marketplace` will fail when pushing the version bump.
 4. **`publisher` in `package.json`** must match the publisher tied to the `VSCE_PAT` token, otherwise `vsce publish` fails with `403 Forbidden`.
 

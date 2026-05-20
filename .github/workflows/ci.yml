@@ -13,11 +13,11 @@
 # Access Token with `Marketplace > Manage` scope.
 # See https://code.visualstudio.com/api/working-with-extensions/publishing-extension#get-a-personal-access-token
 #
-# When publish runs, it bumps the version from Conventional Commits since
-# the last tag, updates the CHANGELOG, commits and tags the release, and
-# publishes via `vsce`. The release commit is created by `github-actions[bot]`
-# with `[skip release]` in its subject so the follow-up push to `main` does
-# not re-trigger publish.
+# When publish runs, `semantic-release` reads Conventional Commits since
+# the last tag to compute the next version, updates the CHANGELOG, commits
+# and tags the release, publishes via `vsce`, and creates a GitHub Release.
+# The release commit is created by `github-actions[bot]` with `[skip ci]`
+# in its subject so the follow-up push to `main` does not re-trigger CI.
 
 name: CI
 
@@ -97,11 +97,12 @@ jobs:
     if: needs.check-publish-config.outputs.enabled == 'true'
     permissions:
       contents: write
+      issues: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4.2.2
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
@@ -110,81 +111,8 @@ jobs:
 
       - run: npm ci
 
-      - name: Configure git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-      - name: Determine version bump from conventional commits
-        id: bump
-        shell: bash
-        run: |
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
-          if [ -z "$LAST_TAG" ]; then
-            RANGE="HEAD"
-          else
-            RANGE="${LAST_TAG}..HEAD"
-          fi
-
-          COMMITS=$(git log $RANGE --pretty=format:"%s%n%b" --no-merges)
-
-          BUMP="patch"
-          if echo "$COMMITS" | grep -qE "BREAKING CHANGE|^[a-z]+(\(.+\))?!:"; then
-            BUMP="major"
-          elif echo "$COMMITS" | grep -qE "^feat(\(.+\))?:"; then
-            BUMP="minor"
-          fi
-
-          echo "bump=$BUMP" >> "$GITHUB_OUTPUT"
-          echo "range=$RANGE" >> "$GITHUB_OUTPUT"
-
-      - name: Bump version
-        id: version
-        shell: bash
-        run: |
-          NEW_VERSION=$(npm version ${{ steps.bump.outputs.bump }} --no-git-tag-version)
-          echo "version=${NEW_VERSION#v}" >> "$GITHUB_OUTPUT"
-
-      - name: Update CHANGELOG
-        shell: bash
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          DATE=$(date +%Y-%m-%d)
-          RANGE="${{ steps.bump.outputs.range }}"
-
-          ADDED=$(git log $RANGE --no-merges --pretty=format:"%s" -E --grep="^feat(\(.+\))?!?:" | sed -E 's/^feat(\(.+\))?!?:[[:space:]]*/- /')
-          FIXED=$(git log $RANGE --no-merges --pretty=format:"%s" -E --grep="^fix(\(.+\))?!?:"  | sed -E 's/^fix(\(.+\))?!?:[[:space:]]*/- /')
-          CHANGED=$(git log $RANGE --no-merges --pretty=format:"%s" -E --grep="^(refactor|perf|chore|docs|style|build|ci|revert)(\(.+\))?!?:" | sed -E 's/^[a-z]+(\(.+\))?!?:[[:space:]]*/- /')
-
-          {
-            echo "## [$VERSION] - $DATE"
-            echo ""
-            if [ -n "$ADDED" ];   then echo "### Added";   echo ""; echo "$ADDED";   echo ""; fi
-            if [ -n "$FIXED" ];   then echo "### Fixed";   echo ""; echo "$FIXED";   echo ""; fi
-            if [ -n "$CHANGED" ]; then echo "### Changed"; echo ""; echo "$CHANGED"; echo ""; fi
-          } > /tmp/new_entry.md
-
-          awk -v entry_file=/tmp/new_entry.md '
-            BEGIN {
-              while ((getline line < entry_file) > 0) entry = entry line ORS
-              close(entry_file)
-            }
-            /^## \[/ && !inserted { printf "%s", entry; inserted=1 }
-            { print }
-            END { if (!inserted) printf "%s", entry }
-          ' CHANGELOG.md > CHANGELOG.md.new
-          mv CHANGELOG.md.new CHANGELOG.md
-
-      - name: Commit, tag and push release
-        shell: bash
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          git add package.json package-lock.json CHANGELOG.md
-          git commit -m "chore(release): v${VERSION} [skip release]"
-          git tag "v${VERSION}"
-          git push origin HEAD:main --follow-tags
-
-      - name: Publish to VS Code Marketplace
+      - name: Release
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        run: npx vsce publish
+        run: npx semantic-release
