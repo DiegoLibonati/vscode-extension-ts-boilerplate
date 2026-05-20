@@ -461,7 +461,7 @@ npx vsce publish --pat <YOUR_PAT>
 
 ## Known Issues
 
-None at the moment.
+- **`brace-expansion` moderate advisory ([GHSA-jxxr-4gwj-5jf2](https://github.com/advisories/GHSA-jxxr-4gwj-5jf2))** — surfaced by `npm audit` as a transitive `devDependency` (pulled in by `@typescript-eslint/typescript-estree`, `glob`, and `npm`). It is **not bundled** into the published `.vsix` (the extension ships with zero production dependencies) and CI runs `npm audit --audit-level=high`, so this moderate finding does not fail the pipeline. It will clear automatically once the upstream `devDependencies` bump their `brace-expansion` ranges; running `npm audit fix` locally is also safe.
 
 ## Portfolio Link
 
