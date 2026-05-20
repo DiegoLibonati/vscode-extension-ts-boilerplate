@@ -114,9 +114,9 @@ This extension does not consume any runtime environment variables — installed 
 
 The only secret in the toolchain belongs to the **publish pipeline**: an Azure DevOps Personal Access Token (PAT) used by `vsce` to push the extension to the Marketplace. It is not loaded from a `.env` file; `vsce` prompts for it on first publish and caches it locally, or you can pass it explicitly. See [Production → Publish to the Marketplace](#publish-to-the-marketplace) for the full flow.
 
-| Variable   | Scope            | Required | Description                                                                                                                |
-| ---------- | ---------------- | -------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `VSCE_PAT` | Publishing only  | Optional | Azure DevOps PAT with Marketplace publish permissions. Can be exported as an env var or passed via `npx vsce publish --pat <token>` to skip the interactive prompt. |
+| Variable   | Scope           | Required | Description                                                                                                                                                         |
+| ---------- | --------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VSCE_PAT` | Publishing only | Optional | Azure DevOps PAT with Marketplace publish permissions. Can be exported as an env var or passed via `npx vsce publish --pat <token>` to skip the interactive prompt. |
 
 ## Project Structure
 
@@ -349,12 +349,12 @@ The repository ships with a **GitHub Actions** pipeline defined in [`.github/wor
 
 Commits merged into `main` must follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) so the pipeline can compute the next version and group the changelog entries.
 
-| Commit prefix | Version bump | Example |
-|---|---|---|
-| `feat:` / `feat(scope):` | **MINOR** | `feat(commands): add open settings command` |
-| `fix:` / `fix(scope):` | **PATCH** | `fix: avoid crash when workspace is empty` |
-| `perf:`, `refactor:`, `docs:`, `build:`, `ci:`, `chore:`, `style:`, `test:` | **PATCH** | `refactor: extract path helper` |
-| `feat!:` / `fix!:` or `BREAKING CHANGE:` in the body | **MAJOR** | `feat!: rename activation command` |
+| Commit prefix                                                               | Version bump | Example                                     |
+| --------------------------------------------------------------------------- | ------------ | ------------------------------------------- |
+| `feat:` / `feat(scope):`                                                    | **MINOR**    | `feat(commands): add open settings command` |
+| `fix:` / `fix(scope):`                                                      | **PATCH**    | `fix: avoid crash when workspace is empty`  |
+| `perf:`, `refactor:`, `docs:`, `build:`, `ci:`, `chore:`, `style:`, `test:` | **PATCH**    | `refactor: extract path helper`             |
+| `feat!:` / `fix!:` or `BREAKING CHANGE:` in the body                        | **MAJOR**    | `feat!: rename activation command`          |
 
 When a push contains multiple commits, the highest applicable bump wins (a single `feat:` among many `fix:` triggers a MINOR bump). If you squash-merge PRs, configure the repo to use the PR title as the squash commit message and write the **PR title** following the convention.
 
@@ -376,12 +376,12 @@ To skip **everything** including validation, use GitHub's standard `[skip ci]` m
 
 ### Where the build outputs live
 
-| Output | Location |
-|---|---|
-| Validation logs (lint, tests) | **Actions** tab on GitHub |
-| Local build artifact (`dist/extension.js`) | Ephemeral, inside the runner |
-| Published `.vsix` per version | [VS Code Marketplace](https://marketplace.visualstudio.com/) under the extension's `publisher` |
-| Version history & notes | [`CHANGELOG.md`](CHANGELOG.md) + git tags (`vX.Y.Z`) |
+| Output                                     | Location                                                                                       |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| Validation logs (lint, tests)              | **Actions** tab on GitHub                                                                      |
+| Local build artifact (`dist/extension.js`) | Ephemeral, inside the runner                                                                   |
+| Published `.vsix` per version              | [VS Code Marketplace](https://marketplace.visualstudio.com/) under the extension's `publisher` |
+| Version history & notes                    | [`CHANGELOG.md`](CHANGELOG.md) + git tags (`vX.Y.Z`)                                           |
 
 > **Note:** GitHub's **Packages** section is for package registries (npm, PyPI, Docker, etc.) and does not host VS Code extensions. The `.vsix` is hosted by the Marketplace; the git tag is the canonical reference for each release.
 
@@ -390,7 +390,7 @@ To skip **everything** including validation, use GitHub's standard `[skip ci]` m
 For the release jobs to push tags + commits back to `main` and publish to the Marketplace, the repository needs:
 
 1. **Settings → Secrets and variables → Actions**: add `VSCE_PAT`, an [Azure DevOps Personal Access Token](https://code.visualstudio.com/api/working-with-extensions/publishing-extension#get-a-personal-access-token) with `Marketplace > Manage` scope. Without this secret the publish job is auto-skipped.
-2. **Settings → Actions → General → Workflow permissions**: set to *Read and write permissions* (the workflow already declares `permissions: contents: write`, `issues: write`, `pull-requests: write` at the job level so `semantic-release` can create releases and comment on related issues/PRs, but the repo toggle must allow it).
+2. **Settings → Actions → General → Workflow permissions**: set to _Read and write permissions_ (the workflow already declares `permissions: contents: write`, `issues: write`, `pull-requests: write` at the job level so `semantic-release` can create releases and comment on related issues/PRs, but the repo toggle must allow it).
 3. **Branch protection on `main`**: if enabled, allow `github-actions[bot]` to bypass the PR requirement, or disable the protection for the bot. Otherwise `publish-marketplace` will fail when pushing the version bump.
 4. **`publisher` in `package.json`** must match the publisher tied to the `VSCE_PAT` token, otherwise `vsce publish` fails with `403 Forbidden`.
 
@@ -461,7 +461,7 @@ npx vsce publish --pat <YOUR_PAT>
 
 ## Known Issues
 
-- **`brace-expansion` moderate advisory ([GHSA-jxxr-4gwj-5jf2](https://github.com/advisories/GHSA-jxxr-4gwj-5jf2))** — surfaced by `npm audit` as a transitive `devDependency` (pulled in by `@typescript-eslint/typescript-estree`, `glob`, and `npm`). It is **not bundled** into the published `.vsix` (the extension ships with zero production dependencies) and CI runs `npm audit --audit-level=high`, so this moderate finding does not fail the pipeline. It will clear automatically once the upstream `devDependencies` bump their `brace-expansion` ranges; running `npm audit fix` locally is also safe.
+- `brace-expansion` moderate advisory ([GHSA-jxxr-4gwj-5jf2](https://github.com/advisories/GHSA-jxxr-4gwj-5jf2)) — surfaced by `npm audit` as a transitive devDependency (shrinkwrapped inside the `npm` CLI, pulled in by `@semantic-release/npm`). It is **not bundled** into the published library tarball, and CI runs `npm audit --omit=dev --audit-level=high`, so this moderate finding does not fail the pipeline. It will clear automatically once the npm CLI team releases a patched version — the caret range in `@semantic-release/npm` will pick it up on the next `npm update`, with no action required from the `semantic-release` maintainers ([semantic-release#4132](https://github.com/semantic-release/semantic-release/issues/4132)).
 
 ## Portfolio Link
 
